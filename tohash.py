@@ -7,6 +7,7 @@ import os
 import pickle
 import hashlib
 import re
+import bf
 
 USAGE = "Transfer binary file to per instruction hashes\nUsage: {} <binary or search-root-folder> <output-filename>"
 ERROR = ["{} is not a PE file.", "objdump error.", "Obj2hash error."]
@@ -123,6 +124,7 @@ def main():
         else:
             print(ERROR[2], file=sys.stderr)
             sys.exit(1)
+        output_file.close()
 
 
 if __name__ == "__main__":
