@@ -41,8 +41,6 @@ class Obj2hash():
                 del output[i]
             else:
                 output[i] = output[i].split("\t")[2]
-                output[i].replace(' ', '')
-                tmp = output[i]
                 output[i] = re.sub(r'\-(0x[\dabcdef]+)', r'+\1', output[i])
                 output[i] = re.sub(r'\-(\d+)', r'+\1', output[i])
                 output[i] = re.sub(
