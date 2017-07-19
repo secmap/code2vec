@@ -7,7 +7,7 @@ import os
 import pickle
 import hashlib
 import re
-import bf
+from bf import bloomfilter
 
 USAGE = "Transfer binary file to per instruction hashes\nUsage: {} <binary or search-root-folder> <output-filename>"
 ERROR = ["{} is not a PE file.", "objdump error.", "Obj2hash error."]
@@ -17,13 +17,8 @@ CONSTANT_SYM = r'{const}'
 
 class Obj2hash():
 
-    def __init__(self, h_size=13):
-        self.h_size = 2**h_size
-        self.hash_fn = lambda str: int(hashlib.md5(
-            str.encode('utf-8')).hexdigest(), 16) % self.h_size
-        self.h_table = [set() for i in range(self.h_size)]
-        self.total = 0
-        self.c_count = 0
+    def __init__(self):
+        self.bloomfilter = bloomfilter()
 
     def obj2hash(self, file):
         output = subprocess.check_output(
@@ -40,37 +35,18 @@ class Obj2hash():
             elif output[i].count("\t") < 2:
                 del output[i]
             else:
-                output[i] = output[i].split("\t")[2]
-                output[i] = re.sub(r'\-(0x[\dabcdef]+)', r'+\1', output[i])
-                output[i] = re.sub(r'\-(\d+)', r'+\1', output[i])
-                output[i] = re.sub(
-                    r'(?!^)\b((0x)?)[0-9a-f]+\b', CONSTANT_SYM, output[i])
-                output[i] = re.sub(r'(?!^)\b\d+\b', CONSTANT_SYM, output[i])
-                output[i] = re.sub(r'<.*>$', r'', output[i])
-                output[i] = re.sub(r'#.*$', r'', output[i])
+                output[i] = output[i].split("\t")[1]
+                output[i] = output[i].replace(' ', '')
 
         hash_list = []
         for i in output:
-            h = self.hash_fn(i)
-            if not i in self.h_table[h]:
-                self.h_table[h].add(i)
-                self.total += 1
-                if len(self.h_table[h]) > 1:
-                    self.c_count += 1
-            hash_list.append(h)
+            vec, indice = self.bloomfilter.add(i)
+            indice_tuple = ','.join([str(idx) for idx in indice])
+            hash_list.append('{}'.format(indice_tuple))
         return hash_list
 
-    def collision(self):
-        print("{} {}".format(self.c_count, self.total))
-        # print("{} occur in size {} hash table.".format(count, len(self.h_table)))
-
-    def save_table(self, file):
-        with open(file, 'wb') as output:
-            pickle.dump(self.h_table, output, pickle.HIGHEST_PROTOCOL)
-
-    def load_table(self, file):
-        with open(file, 'rb') as output:
-            self.h_table = pickle.load(output)
+    def save_table(self):
+        self.bloomfilter.save()
 
 
 def is_valid_header(header):
@@ -102,23 +78,20 @@ def main():
                             hash_str = ' '.join(hash_list)
                             output_file.write(hash_str + '\n')
         finally:
-            tohash.save_table('hash.plk')
-            tohash.collision()
+            tohash.save_table()
             output_file.close()
     else:
         if not is_valid_header(magic.Magic().id_filename(file)):
             print(ERROR[0].format(sys.argv[1]), file=sys.stderr)
             sys.exit(1)
 
-        tohash = Obj2hash(22)
+        tohash = Obj2hash()
         hash_list = tohash.obj2hash(file)
         if hash_list is not None:
             hash_list = [str(h) for h in hash_list]
             hash_str = ' '.join(hash_list)
             output_file.write(hash_str + '\n')
-            tohash.save_table('hash.plk')
-            # tohash.load_table('hash.plk')
-            tohash.collision()
+            tohash.save_table()
         else:
             print(ERROR[2], file=sys.stderr)
             sys.exit(1)
