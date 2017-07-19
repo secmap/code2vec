@@ -65,7 +65,7 @@ def main():
 
     if os.path.isdir(file):
         search_root = file
-        tohash = Obj2hash(22)
+        tohash = Obj2hash()
         try:
             for root, dirnames, filenames in os.walk(search_root):
                 for filename in filenames:
