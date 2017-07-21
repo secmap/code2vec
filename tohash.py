@@ -71,12 +71,16 @@ def main():
                 for filename in filenames:
                     file_path = os.path.join(root, filename)
                     file_size = os.path.getsize(file_path)
-                    if is_valid_header(magic.Magic().id_filename(file_path)) and file_size < 5242880:
-                        hash_list = tohash.obj2hash(file_path)
-                        if hash_list is not None:
-                            hash_list = [str(h) for h in hash_list]
-                            hash_str = ' '.join(hash_list)
-                            output_file.write(hash_str + '\n')
+                    print('Processing: {}'.format(file_path))
+                    try:
+                        if is_valid_header(magic.Magic().id_filename(file_path)) and file_size < 5242880:
+                            hash_list = tohash.obj2hash(file_path)
+                            if hash_list is not None:
+                                hash_list = [str(h) for h in hash_list]
+                                hash_str = ' '.join(hash_list)
+                                output_file.write(hash_str + '\n')
+                    except UnicodeEncodeError:
+                        pass
         finally:
             tohash.save_table()
             output_file.close()
