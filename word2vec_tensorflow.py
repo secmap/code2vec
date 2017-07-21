@@ -227,8 +227,8 @@ with tf.Session(graph=graph) as session:
                 print(log_str)
         '''
 
-        save_path = saver.save(session, "model.ckpt")
     final_embeddings = normalized_embeddings.eval()
+    save_path = saver.save(session, "model.ckpt")
 
 # Step 6: Visualize the embeddings.
 
