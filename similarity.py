@@ -98,8 +98,8 @@ with tf.Session(graph=graph) as session:
             user_input = get_asm_indice(raw_user_input)
 
         feed_dict = {test_input: user_input}
-        similarity = session.run([similarity], feed_dict=feed_dict)[0][0]
-        nearest = (-similarity).argsort()[1:top_k + 1]
+        sim = session.run([similarity], feed_dict=feed_dict)[0][0]
+        nearest = (-sim).argsort()[1:top_k + 1]
         log_str = 'Nearest to <{}>:'.format(raw_user_input)
         for k in range(top_k): # Iterate each top_k closed word
             close_opcode_indice = vocabulary[nearest[k]] # all the hash value of the closed word
