@@ -1003,7 +1003,7 @@ def _compute_sampled_logits(weights,
     print('all_w.shape = ', all_w.shape)
     print('all_b.shape = ', all_b.shape)
 
-    embedding_size = 128
+    embedding_size = inputs.shape.as_list()[1]
     all_w = array_ops.reshape(all_w, [-1, embedding_size])
     print('all_w.shape(after reshape) = ', all_w.shape)
 
@@ -1048,7 +1048,7 @@ def _compute_sampled_logits(weights,
     #   sampled_w shape is [num_sampled, dim]
     #   sampled_b is a [num_sampled] float tensor
     sampled_w = array_ops.slice(
-        all_w, array_ops.stack([130 * num_hash_func, 0]), [-1, -1])
+        all_w, array_ops.stack([inputs.shape.as_list()[0] * num_hash_func, 0]), [-1, -1])
     sampled_b = array_ops.slice(all_b, array_ops.shape(labels_flat) * num_hash_func, [-1])
 
     print('sampled_w.shape = ', sampled_w.shape)
