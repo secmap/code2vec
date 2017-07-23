@@ -7,10 +7,19 @@ import numpy as np
 import bf
 import pwn
 
-if len(sys.argv) != 2:
-    print('Usage:\n\tsimilarity.py <input filename>')
+if len(sys.argv) != 3:
+    print('Usage:\n\tsimilarity.py <input filename> <model filename>')
     sys.exit(-1)
 
+print('Loading bloomfilter...', end='')
+bloomfilter = bf.bloomfilter()
+bloomfilter.load('bf')
+print('Done')
+
+def get_asm_indice(asm_str):
+    opcode = pwn.asm(asm_str)
+    indice = bloomfilter.get_indice(opcode)
+    return indice
 
 def read_data(filename):
     """Extract the first file enclosed in a zip file as a list of words."""
@@ -25,6 +34,7 @@ def read_data(filename):
             unsorted_res.append(list(w))
     return unsorted_res 
 
+print('Read vocabulary from {}...'.format(sys.argv[1]))
 vocabulary = read_data(sys.argv[1])
 
 embedding_size = 128  # Dimension of the embedding vector.
@@ -33,6 +43,8 @@ bloom_filter_max_size = 65536
 num_hash_fun = 7
 
 top_k = 8
+
+print('Construct required tf graph...', end='')
 
 graph = tf.Graph()
 
@@ -64,25 +76,31 @@ with graph.as_default():
     # Add variable initializer.
     init = tf.global_variables_initializer()
 
-bloomfilter = bf.bloomfilter()
-bloomfilter.load('bf')
+print('Done')
+print('Tensorflow session start')
 
 with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
     init.run()
 
+    print('Restore embeddings weights from model({})...'.format(sys.argv[2]), end='')
     saver = tf.train.Saver({'embeddings': embeddings})
-    saver.restore(session, "model.ckpt")
+    saver.restore(session, sys.argv[2])
+    print('Done')
     
     while True:
-        user_input = input('Please input a word (index1,index2,index3,...) or (exit):')
-        if user_input == 'exit':
+        raw_user_input = input('Please input a word (idx1,idx2,...idx7) or asm or exit:')
+        if raw_user_input == 'exit':
             break
-        user_input = [int(i) for i in user_input.split(',')]
+        if raw_user_input.startswith('('):
+            user_input = [int(i) for i in raw_user_input[1:-1].split(',')]
+        else:
+            user_input = get_asm_indice(raw_user_input)
+
         feed_dict = {test_input: user_input}
         similarity = session.run([similarity], feed_dict=feed_dict)[0][0]
         nearest = (-similarity).argsort()[1:top_k + 1]
-        log_str = 'Nearest to {}:'.format(user_input)
+        log_str = 'Nearest to <{}>:'.format(raw_user_input)
         for k in range(top_k): # Iterate each top_k closed word
             close_opcode_indice = vocabulary[nearest[k]] # all the hash value of the closed word
             opcode_str = ''
@@ -100,5 +118,5 @@ with tf.Session(graph=graph) as session:
                 for opcode in opcodes:
                     opcode_asm = pwn.disasm(bytearray.fromhex(opcode))
                     opcode_asm_list.append(opcode_asm)
-                log_str = '{} {{{}}},'.format(log_str, '; '.join(opcode_asm_list))
-        print(log_str)
+                print('\t' + '; '.join(opcode_asm_list))
+        print('=' * 80)
