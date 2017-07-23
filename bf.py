@@ -53,6 +53,14 @@ class bloomfilter():
 
         return res, index
 
+
+    def get_indice(self, str):
+        index = []
+        for i in range(self.k):
+            index.append(self.hashes[i](str) % self.size)
+        return index
+
+
     def save(self):
         with open(self.name+'.plk', 'wb') as f:
             pickle.dump([self.k, self.size, self.bitarray, self.tables], f, pickle.HIGHEST_PROTOCOL)
