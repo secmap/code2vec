@@ -66,3 +66,6 @@ class bloomfilter():
         self.bitarray = bf[2]
         self.tables = bf[3]
         self.name = file
+
+    def get_opcode_in_table(self, table_id, opcode_hash):
+        return self.tables[table_id][opcode_hash]
