@@ -4,6 +4,8 @@ import tensorflow as tf
 import sys
 import os
 import numpy as np
+import bf
+import pwn
 
 if len(sys.argv) != 2:
     print('Usage:\n\tsimilarity.py <input filename>')
@@ -62,6 +64,8 @@ with graph.as_default():
     # Add variable initializer.
     init = tf.global_variables_initializer()
 
+bloomfilter = bf.bloomfilter()
+bloomfilter.load('bf')
 
 with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
@@ -79,8 +83,22 @@ with tf.Session(graph=graph) as session:
         similarity = session.run([similarity], feed_dict=feed_dict)[0][0]
         nearest = (-similarity).argsort()[1:top_k + 1]
         log_str = 'Nearest to {}:'.format(user_input)
-        for k in range(top_k):
-            print(nearest[k])
-            close_opcode = vocabulary[nearest[k]]
-            log_str = '{} {},'.format(log_str, close_opcode)
+        for k in range(top_k): # Iterate each top_k closed word
+            close_opcode_indice = vocabulary[nearest[k]] # all the hash value of the closed word
+            opcode_str = ''
+            opcodes = set()
+            for idx, val in enumerate(close_opcode_indice):
+                if idx == 0:
+                    opcodes = bloomfilter.get_opcode_in_table(idx, val)
+                else:
+                    opcodes &= bloomfilter.get_opcode_in_table(idx, val)
+            # opcode_asm = pwn.disasm(opcode)
+            if len(opcodes) == 0:
+                print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
+            else:
+                opcode_asm_list = []
+                for opcode in opcodes:
+                    opcode_asm = pwn.disasm(bytearray.fromhex(opcode))
+                    opcode_asm_list.append(opcode_asm)
+                log_str = '{} {{{}}},'.format(log_str, '; '.join(opcode_asm_list))
         print(log_str)
