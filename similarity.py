@@ -7,13 +7,13 @@ import numpy as np
 import bf
 import pwn
 
-if len(sys.argv) != 3:
-    print('Usage:\n\tsimilarity.py <input filename> <model filename>')
+if len(sys.argv) != 4:
+    print('Usage:\n\tsimilarity.py <input filename> <bloom filter plk> <model filename>')
     sys.exit(-1)
 
 print('Loading bloomfilter...', end='')
 bloomfilter = bf.bloomfilter()
-bloomfilter.load('bf')
+bloomfilter.load(sys.argv[2])
 print('Done')
 
 def get_asm_indice(asm_str):
@@ -34,8 +34,9 @@ def read_data(filename):
             unsorted_res.append(list(w))
     return unsorted_res 
 
-print('Read vocabulary from {}...'.format(sys.argv[1]))
+print('Read vocabulary from {}...'.format(sys.argv[1]), end='')
 vocabulary = read_data(sys.argv[1])
+print('Done')
 
 embedding_size = 128  # Dimension of the embedding vector.
 
@@ -83,9 +84,9 @@ with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
     init.run()
 
-    print('Restore embeddings weights from model({})...'.format(sys.argv[2]), end='')
+    print('Restore embeddings weights from model({})...'.format(sys.argv[3]), end='')
     saver = tf.train.Saver({'embeddings': embeddings})
-    saver.restore(session, sys.argv[2])
+    saver.restore(session, sys.argv[3])
     print('Done')
     
     while True:
