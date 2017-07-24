@@ -27,7 +27,7 @@ class Obj2hash():
             print(ERROR[1], file=sys.stderr)
             return None
 
-        output = output.decode('utf-8')
+        output = output.decode('utf-8', 'ignore')
         output = output.split("\n")
         for i in range(len(output) - 1, -1, -1):
             if output[i] == '':
