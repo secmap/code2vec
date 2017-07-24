@@ -17,8 +17,8 @@ CONSTANT_SYM = r'{const}'
 
 class Obj2hash():
 
-    def __init__(self):
-        self.bloomfilter = bloomfilter()
+    def __init__(self, name):
+        self.bloomfilter = bloomfilter(name=name)
 
     def obj2hash(self, file):
         output = subprocess.check_output(
@@ -61,11 +61,11 @@ def main():
         sys.exit(1)
 
     file = sys.argv[1]
-    output_file = open(sys.argv[2], 'w')
+    output_file = open(sys.argv[2] + '.txt', 'w')
 
     if os.path.isdir(file):
         search_root = file
-        tohash = Obj2hash()
+        tohash = Obj2hash(sys.argv[2])
         try:
             for root, dirnames, filenames in os.walk(search_root):
                 for filename in filenames:
@@ -91,7 +91,7 @@ def main():
             print(ERROR[0].format(sys.argv[1]), file=sys.stderr)
             sys.exit(1)
 
-        tohash = Obj2hash()
+        tohash = Obj2hash(sys.argv[2])
         hash_list = tohash.obj2hash(file)
         if hash_list is not None:
             hash_list = [str(h) for h in hash_list]
