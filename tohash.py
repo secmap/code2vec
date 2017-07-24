@@ -81,6 +81,8 @@ def main():
                                 output_file.write(hash_str + '\n')
                     except UnicodeEncodeError:
                         pass
+                    except subprocess.CalledProcessError:
+                        print('Unable to process {}'.format(file_path))
         finally:
             tohash.save_table()
             output_file.close()
