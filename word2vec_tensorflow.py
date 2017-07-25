@@ -23,7 +23,6 @@ bloom_filter_max_size = 65536
 num_hash_fun = 7
 num_of_most_common = 50000
 
-
 bloom_filter = bf.bloomfilter()
 unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
 
@@ -48,6 +47,10 @@ def read_data(filename):
 
 vocabulary = read_data(sys.argv[1])
 print('Data size', len(vocabulary))
+
+
+bloom_filter = bf.bloomfilter()
+unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
 
 # Step 2: Build the dictionary and replace rare words with UNK token.
 
@@ -88,7 +91,6 @@ print('Most common words (+UNK)', count[:5])
 data_index = 0
 
 # Step 3: Function to generate a training batch for the skip-gram model.
-
 
 vocabulary = [list(v) for v in vocabulary]
 
