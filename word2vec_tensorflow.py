@@ -21,6 +21,12 @@ import tensorflow as tf
 bloom_filter_max_size = 65536
 num_hash_fun = 7
 
+
+if len(sys.argv) != 3:
+    print('Usage:\nword2vec_tensorflow.py <input_filename> <output_model_filename>')
+    sys.exit(1)
+
+
 def read_data(filename):
     """Extract the first file enclosed in a zip file as a list of words."""
     with open(filename) as f:
@@ -189,7 +195,7 @@ with tf.Session(graph=graph) as session:
     init.run()
     print('Initialized')
 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver({'embeddings': embeddings})
 
     average_loss = 0
     for step in xrange(num_steps):
@@ -228,37 +234,6 @@ with tf.Session(graph=graph) as session:
         '''
 
     final_embeddings = normalized_embeddings.eval()
-    save_path = saver.save(session, "model.ckpt")
+    save_path = saver.save(session, sys.argv[2])
 
-# Step 6: Visualize the embeddings.
-
-
-def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
-    assert low_dim_embs.shape[0] >= len(labels), 'More labels than embeddings'
-    plt.figure(figsize=(18, 18))  # in inches
-    for i, label in enumerate(labels):
-        x, y = low_dim_embs[i, :]
-        plt.scatter(x, y)
-        plt.annotate(label,
-                     xy=(x, y),
-                     xytext=(5, 2),
-                     textcoords='offset points',
-                     ha='right',
-                     va='bottom')
-
-    plt.savefig(filename)
-
-
-try:
-    # pylint: disable=g-import-not-at-top
-    from sklearn.manifold import TSNE
-    import matplotlib.pyplot as plt
-
-    tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
-    plot_only = 500
-    low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
-    labels = [reverse_dictionary[i] for i in xrange(plot_only)]
-    plot_with_labels(low_dim_embs, labels)
-
-except ImportError:
-    print('Please install sklearn, matplotlib, and scipy to show embeddings.')
+print('Training Finished!')
