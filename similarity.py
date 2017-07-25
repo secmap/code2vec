@@ -16,10 +16,10 @@ bloomfilter = bf.bloomfilter()
 bloomfilter.load(sys.argv[2])
 print('Done')
 
-def get_asm_indice(asm_str):
-    opcode = pwn.asm(asm_str)
-    indice = bloomfilter.get_indice(opcode)
+def get_word_indice(word):
+    indice = bloomfilter.get_indice(word)
     return indice
+
 
 def read_data(filename):
     """Extract the first file enclosed in a zip file as a list of words."""
@@ -90,13 +90,13 @@ with tf.Session(graph=graph) as session:
     print('Done')
     
     while True:
-        raw_user_input = input('Please input a word (idx1,idx2,...idx7) or asm or exit:')
+        raw_user_input = input('Please input a word (idx1,idx2,...idx7) or word or exit:')
         if raw_user_input == 'exit':
             break
         if raw_user_input.startswith('('):
             user_input = [int(i) for i in raw_user_input[1:-1].split(',')]
         else:
-            user_input = get_asm_indice(raw_user_input)
+            user_input = get_word_indice(raw_user_input)
 
         feed_dict = {test_input: user_input}
         sim = session.run([similarity], feed_dict=feed_dict)[0][0]
@@ -105,19 +105,15 @@ with tf.Session(graph=graph) as session:
         for k in range(top_k): # Iterate each top_k closed word
             close_opcode_indice = vocabulary[nearest[k]] # all the hash value of the closed word
             opcode_str = ''
-            opcodes = set()
+            possible_words = set()
             for idx, val in enumerate(close_opcode_indice):
                 if idx == 0:
-                    opcodes = bloomfilter.get_opcode_in_table(idx, val)
+                    possible_words = bloomfilter.get_opcode_in_table(idx, val)
                 else:
-                    opcodes &= bloomfilter.get_opcode_in_table(idx, val)
+                    possible_words &= bloomfilter.get_opcode_in_table(idx, val)
             # opcode_asm = pwn.disasm(opcode)
-            if len(opcodes) == 0:
+            if len(possible_words) == 0:
                 print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
             else:
-                opcode_asm_list = []
-                for opcode in opcodes:
-                    opcode_asm = pwn.disasm(bytearray.fromhex(opcode))
-                    opcode_asm_list.append(opcode_asm)
-                print('\t' + '; '.join(opcode_asm_list))
+                print(possible_words)
         print('=' * 80)
