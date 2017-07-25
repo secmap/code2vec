@@ -123,6 +123,7 @@ with tf.Session(graph=graph) as session:
 
         feed_dict = {test_input: user_input}
         sim = session.run([similarity], feed_dict=feed_dict)[0][0]
+        distance = np.sort((-sim))[1:top_k + 1]
         nearest = (-sim).argsort()[1:top_k + 1]
         log_str = 'Nearest to <{}>:'.format(raw_user_input)
         for k in range(top_k): # Iterate each top_k closed word
@@ -138,5 +139,5 @@ with tf.Session(graph=graph) as session:
             if len(possible_words) == 0:
                 print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
             else:
-                print(possible_words)
+                print('{}\t{}'.format(distance[k], possible_words))
         print('=' * 80)
