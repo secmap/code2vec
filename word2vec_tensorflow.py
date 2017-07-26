@@ -11,6 +11,7 @@ import os
 import sys
 import random
 import zipfile
+import bf
 
 import numpy as np
 from six.moves import urllib
@@ -20,6 +21,11 @@ import tensorflow as tf
 
 bloom_filter_max_size = 65536
 num_hash_fun = 7
+num_of_most_common = 50000
+
+
+bloom_filter = bf.bloomfilter()
+unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
 
 
 if len(sys.argv) != 3:
@@ -44,24 +50,36 @@ print('Data size', len(vocabulary))
 # Step 2: Build the dictionary and replace rare words with UNK token.
 
 
-def build_dataset(words):
+def build_dataset(words, n_words):
     """Process raw inputs into a dataset."""
 
-    count = []
+    count = [[unknow_indice, -1]]
     rank_matrix = []
     words_counter = collections.Counter(words)
-    count.extend(words_counter.most_common(len(words_counter)))
+    count.extend(words_counter.most_common(n_words))
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
-        
+    
+    data = list()
+    unk_count = 0
+    for word in words:
+        if word in dictionary:
+            indice = word
+        else:
+            indice = unknow_indice  # dictionary['UNK']
+            unk_count += 1
+        data.append(indice)
+    count[0][1] = unk_count
+    count[0] = tuple(count[0])
+
     reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     for i in range(len(count)):
         rank_matrix.append(list(reversed_dictionary[i]))
-    return count, dictionary, reversed_dictionary, rank_matrix
+    return data, count, dictionary, reversed_dictionary, rank_matrix
 
 
-count, dictionary, reverse_dictionary, rank_matrix = build_dataset(vocabulary)
+vocabulary, count, dictionary, reverse_dictionary, rank_matrix = build_dataset(vocabulary, num_of_most_common)
 vocabulary_size = len(dictionary)
 
 print('Most common words (+UNK)', count[:5])
