@@ -71,7 +71,7 @@ with graph.as_default():
     # Compute the cosine similarity between minibatch examples and all embeddings.
     norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
     normalized_embeddings = embeddings / norm
-    all_words_embeddings = tf.nn.embedding_lookup(normalized_embeddings, vocabulary)
+    all_words_embeddings = tf.nn.embedding_lookup(normalized_embeddings, vocabulary) / tf.sqrt(tf.reduce_sum(tf.square(test_vec)))
     all_words_embeddings = tf.reduce_mean(all_words_embeddings, 1)
 
     similarity = tf.matmul(test_vec, all_words_embeddings, transpose_b=True)
