@@ -37,8 +37,10 @@ def read_data(filename):
     """Extract the first file enclosed in a zip file as a list of words."""
     with open(filename) as f:
         res = []
-        data = tf.compat.as_str(f.read()).split()
-        for word in data:
+        for line in f:
+            word = line.strip()
+            if len(word) == 0:
+                continue
             word_idx_list = [int(idx) for idx in word.split(',')]
             res.append(tuple(sorted(word_idx_list)))
     return res

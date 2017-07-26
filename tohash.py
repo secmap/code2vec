@@ -95,7 +95,7 @@ def main():
         hash_list = tohash.obj2hash(file)
         if hash_list is not None:
             hash_list = [str(h) for h in hash_list]
-            hash_str = ' '.join(hash_list)
+            hash_str = '\n'.join(hash_list)
             output_file.write(hash_str + '\n')
             tohash.save_table()
         else:

@@ -26,8 +26,10 @@ def read_data(filename):
     with open(filename) as f:
         filter_set = set()
         unsorted_res = []
-        data = tf.compat.as_str(f.read()).split()
-        for word in data:
+        for line in f:
+            word = line.strip()
+            if len(word) == 0:
+                continue
             word_idx_list = [int(idx) for idx in word.split(',')]
             filter_set.add(tuple(word_idx_list))
         for w in filter_set:
