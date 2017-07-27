@@ -6,6 +6,7 @@ import os
 import numpy as np
 import bf
 import pwn
+import collections
 
 if len(sys.argv) != 4:
     print('Usage:\n\tsimilarity.py <input filename> <bloom filter plk> <model filename>')
@@ -21,23 +22,40 @@ def get_asm_indice(asm_str):
     indice = bloomfilter.get_indice(opcode)
     return indice
 
-def read_data(filename):
+
+def read_data(filename, n_words):
     """Extract the first file enclosed in a zip file as a list of words."""
     with open(filename) as f:
         filter_set = set()
         unsorted_res = []
+        words = []
+        count = []
         for line in f:
             word = line.strip()
             if len(word) == 0:
                 continue
             word_idx_list = [int(idx) for idx in word.split(',')]
             filter_set.add(tuple(word_idx_list))
+            words.append(tuple(sorted(word_idx_list)))
+        words_counter = collections.Counter(words)
+        most_common_words = words_counter.most_common(n_words)
+        most_common_words = [item[0] for item in most_common_words]
+
         for w in filter_set:
-            unsorted_res.append(list(w))
-    return unsorted_res 
+            if tuple(sorted(list(w))) in most_common_words:
+                unsorted_res.append(list(w))
+    
+    del most_common_words
+    del words
+    del count
+    del filter_set
+
+    return unsorted_res
+
+n_words = 50000
 
 print('Read vocabulary from {}...'.format(sys.argv[1]), end='')
-vocabulary = read_data(sys.argv[1])
+vocabulary = read_data(sys.argv[1], n_words)
 print('Done')
 
 embedding_size = 256 # Dimension of the embedding vector.
