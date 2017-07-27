@@ -33,8 +33,6 @@ def read_data(filename, n_words):
 
         unsorted_res = dict()
         for w in filter_set:
-            if w == is_tuple:
-                print('Found')
             sorted_tuple = tuple(sorted(list(w)))
             if sorted_tuple in most_common_words:
                 unsorted_res[w] = most_common_words[sorted_tuple]
