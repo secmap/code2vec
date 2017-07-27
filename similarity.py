@@ -38,8 +38,10 @@ def read_data(filename, n_words):
             filter_set.add(tuple(word_idx_list))
             words.append(tuple(sorted(word_idx_list)))
         words_counter = collections.Counter(words)
-        most_common_words = words_counter.most_common(n_words)
-        most_common_words = [item[0] for item in most_common_words]
+        most_common_words = dict()
+        most_common_words_counter = words_counter.most_common(n_words)
+        for item in most_common_words_counter:
+            most_common_words[item[0]] = True
 
         for w in filter_set:
             if tuple(sorted(list(w))) in most_common_words:
