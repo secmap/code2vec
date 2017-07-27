@@ -17,7 +17,7 @@ bloomfilter.load(sys.argv[2])
 print('Done')
 
 def get_asm_indice(asm_str):
-    opcode = pwn.asm(asm_str)
+    opcode = pwn.asm(asm_str, vma=0xdeadbeef)
     indice = bloomfilter.get_indice(opcode)
     return indice
 
@@ -40,7 +40,7 @@ print('Read vocabulary from {}...'.format(sys.argv[1]), end='')
 vocabulary = read_data(sys.argv[1])
 print('Done')
 
-embedding_size = 128  # Dimension of the embedding vector.
+embedding_size = 256 # Dimension of the embedding vector.
 
 bloom_filter_max_size = 65536
 num_hash_fun = 7
