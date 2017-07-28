@@ -133,7 +133,7 @@ with tf.Session(graph=graph) as session:
                 if idx == 0:
                     opcodes = bloomfilter.get_opcode_in_table(idx, val)
                 else:
-                    opcodes &= bloomfilter.get_opcode_in_table(idx, val)
+                    opcodes = opcodes & bloomfilter.get_opcode_in_table(idx, val)
             # opcode_asm = pwn.disasm(opcode)
             if len(opcodes) == 0:
                 print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
