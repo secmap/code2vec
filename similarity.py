@@ -89,12 +89,13 @@ with graph.as_default():
 
 
     # Compute the cosine similarity between minibatch examples and all embeddings.
-    norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
-    normalized_embeddings = embeddings / norm
-    all_words_embeddings = tf.nn.embedding_lookup(normalized_embeddings, vocabulary) / tf.sqrt(tf.reduce_sum(tf.square(test_vec)))
+    all_words_embeddings = tf.nn.embedding_lookup(embeddings, vocabulary)
     all_words_embeddings = tf.reduce_mean(all_words_embeddings, 1)
 
-    similarity = tf.matmul(test_vec, all_words_embeddings, transpose_b=True)
+    norm = tf.sqrt(tf.reduce_sum(tf.square(all_words_embeddings), 1, keep_dims=True))
+    all_words_embeddings = all_words_embeddings / norm
+
+    similarity = tf.matmul(test_vec, all_words_embeddings, transpose_b=True) / tf.sqrt(tf.reduce_sum(tf.square(test_vec)))
 
     # Add variable initializer.
     init = tf.global_variables_initializer()
