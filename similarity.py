@@ -46,7 +46,7 @@ def read_data(filename, n_words):
         for w in filter_set:
             if tuple(sorted(list(w))) in most_common_words:
                 unsorted_res.append(list(w))
-    
+
     del most_common_words
     del words
     del count
@@ -60,12 +60,12 @@ print('Read vocabulary from {}...'.format(sys.argv[1]), end='')
 vocabulary = read_data(sys.argv[1], n_words)
 print('Done')
 
-embedding_size = 256 # Dimension of the embedding vector.
+embedding_size = 128 # Dimension of the embedding vector.
 
-bloom_filter_max_size = 65536
+bloom_filter_max_size = 256
 num_hash_fun = 7
 
-top_k = 8
+top_k = 20
 
 print('Construct required tf graph...', end='')
 
@@ -91,7 +91,6 @@ with graph.as_default():
     # Compute the cosine similarity between minibatch examples and all embeddings.
     all_words_embeddings = tf.nn.embedding_lookup(embeddings, vocabulary)
     all_words_embeddings = tf.reduce_mean(all_words_embeddings, 1)
-
     norm = tf.sqrt(tf.reduce_sum(tf.square(all_words_embeddings), 1, keep_dims=True))
     all_words_embeddings = all_words_embeddings / norm
 
@@ -111,7 +110,7 @@ with tf.Session(graph=graph) as session:
     saver = tf.train.Saver({'embeddings': embeddings})
     saver.restore(session, sys.argv[3])
     print('Done')
-    
+
     while True:
         raw_user_input = input('Please input a word (idx1,idx2,...idx7) or word or exit:')
         if raw_user_input == 'exit':
@@ -123,8 +122,8 @@ with tf.Session(graph=graph) as session:
 
         feed_dict = {test_input: user_input}
         sim = session.run([similarity], feed_dict=feed_dict)[0][0]
-        distance = np.sort((-sim))[1:top_k + 1]
-        nearest = (-sim).argsort()[1:top_k + 1]
+        distance = np.sort((-sim))[0:top_k + 1]
+        nearest = (-sim).argsort()[0:top_k + 1]
         log_str = 'Nearest to <{}>:'.format(raw_user_input)
         for k in range(top_k): # Iterate each top_k closed word
             close_opcode_indice = vocabulary[nearest[k]] # all the hash value of the closed word
@@ -137,7 +136,8 @@ with tf.Session(graph=graph) as session:
                     possible_words = possible_words & bloomfilter.get_opcode_in_table(idx, val)
             # opcode_asm = pwn.disasm(opcode)
             if len(possible_words) == 0:
-                print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
+                pass
+                #print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
             else:
                 print('{}\t{}'.format(distance[k], possible_words))
         print('=' * 80)

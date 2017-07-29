@@ -19,13 +19,9 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 
-bloom_filter_max_size = 65536
+bloom_filter_max_size = 256
 num_hash_fun = 7
 num_of_most_common = 50000
-
-bloom_filter = bf.bloomfilter()
-unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
-
 
 if len(sys.argv) != 3:
     print('Usage:\nword2vec_tensorflow.py <input_filename> <output_model_filename>')
@@ -49,7 +45,7 @@ vocabulary = read_data(sys.argv[1])
 print('Data size', len(vocabulary))
 
 
-bloom_filter = bf.bloomfilter()
+bloom_filter = bf.bloomfilter(name="UNK", size=256)
 unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
 
 # Step 2: Build the dictionary and replace rare words with UNK token.

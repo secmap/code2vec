@@ -14,8 +14,8 @@ ERROR = ['Read file error']
 
 class Obj2hash():
 
-    def __init__(self, name):
-        self.bloomfilter = bloomfilter(name=name)
+    def __init__(self, name, size):
+        self.bloomfilter = bloomfilter(name=name, size=size)
 
     def obj2hash(self, file):
         output = open(file, 'r').read()
@@ -46,7 +46,7 @@ def main():
 
     if os.path.isdir(file):
         search_root = file
-        tohash = Obj2hash(sys.argv[2])
+        tohash = Obj2hash(sys.argv[2], 256)
         try:
             for root, dirnames, filenames in os.walk(search_root):
                 for filename in filenames:
@@ -62,7 +62,7 @@ def main():
             tohash.save_table()
             output_file.close()
     else:
-        tohash = Obj2hash(sys.argv[2])
+        tohash = Obj2hash(sys.argv[2], 256)
         hash_list = tohash.obj2hash(file)
         if hash_list is not None:
             hash_list = [str(h) for h in hash_list]
