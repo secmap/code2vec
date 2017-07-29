@@ -5,10 +5,17 @@ import bf
 import collections
 import tensorflow as tf
 import re
+import pwn
 
 if len(sys.argv) != 4:
     print('Usage:\n\tcount_frequency.py <input filename> <bloom filter plk> <output filename>')
     sys.exit(-1)
+
+
+def get_asm_indice(asm_str):
+    opcode = pwn.asm(asm_str, vma=0xdeadbeef)
+    indice = bloomfilter.get_indice(opcode)
+    return indice
 
 
 def read_data(filename, n_words):
@@ -68,7 +75,12 @@ for word_tuple, word_count in most_common_words.items():
     if len(possible_words) == 0:
         print('Unable to find reversed words for: {}'.format(word_tuple))
     else:
-        output_file.write('{}\t#{}\t{}\n'.format(possible_words, word_tuple, word_count))
+        opcode_asm_list = []
+        for opcode in possible_words:
+            opcode_asm = pwn.disasm(bytearray.fromhex(opcode))
+            opcode_asm_list.append(opcode_asm)
+        disasm_str = '; '.join(opcode_asm_list)
+        output_file.write('{}\t#{}\t{}\n'.format(disasm_str, word_tuple, word_count))
 
 output_file.close()
     

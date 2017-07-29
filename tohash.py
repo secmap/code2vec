@@ -10,7 +10,7 @@ from bf import bloomfilter
 import argparse
 
 
-ERROR = ['Read file error']
+ERROR = ['Read file error', 'Not a valid PE file']
 
 def progress(count, total, suffix=''):
      bar_len = 60
@@ -32,12 +32,21 @@ class Obj2hash():
         self.bloomfilter = bloomfilter(name=name, size=size, k=k)
 
     def obj2hash(self, file):
-        output = open(file, 'r').read()
+        output = subprocess.check_output(['objdump', '-M', 'intel', '-d', file])
         if output == None:
             print(ERROR[1], file=sys.stderr)
             return None
 
-        output = output.split()
+        output = output.decode('utf-8', 'ignore')
+        output = output.split("\n")
+        for i in range(len(output) - 1, -1, -1):
+            if output[i] == '':
+                del output[i]
+            elif output[i].count("\t") < 2:
+                del output[i]
+            else:
+                output[i] = output[i].split("\t")[1]
+                output[i] = output[i].replace(' ', '')
 
         hash_list = []
         total = len(output)
@@ -85,6 +94,13 @@ def gen_hash(hasher, file_path, outf):
         print('Error for processing {}'.format(file_path))
     return
 
+
+def is_valid_header(header):
+    if 'PE' in header and 'executable' in header:
+        return True
+    return False
+
+
 def main():
     args = parse_arguments()
     output_file = open(args.output + '_' + str(args.max_bf_size) + '.hash', 'w')
@@ -96,9 +112,14 @@ def main():
             for root, dirnames, filenames in os.walk(search_root):
                 for filename in filenames:
                     file_path = os.path.join(root, filename)
-                    gen_hash(tohash, file_path, output_file)
+                    if is_valid_header(magic.Magic().id_filename(file_path)):
+                        gen_hash(tohash, file_path, output_file)
         else:
-            gen_hash(tohash, args.input, output_file)
+            if is_valid_header(magic.Magic().id_filename(file_path)):
+                gen_hash(tohash, args.input, output_file)
+            else:
+                print(ERROR[1])
+                sys.exit(-1)
     finally:
         tohash.save_table()
         output_file.close()
