@@ -7,14 +7,49 @@ import numpy as np
 import bf
 import pwn
 import collections
+import argparse
 
-if len(sys.argv) != 4:
-    print('Usage:\n\tsimilarity.py <input filename> <bloom filter plk> <model filename>')
-    sys.exit(-1)
+def parse_arguments():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("hashes", help="the hash list", type=str)
+    parser.add_argument("bloom", help="the bloom filter pickle file", type=str)
+    parser.add_argument("model", help="the output trained model", type=str)
+    parser.add_argument("-k",
+	help="the total number of hash functions (def:7)",
+        type=int,
+        default=7)
+    parser.add_argument("-max_bf_size", "-bf",
+        help="the max index of hash functions (def:2^16)",
+        type=int,
+        default=65535)
+    parser.add_argument("-noc",
+        help="the number of most common (def:50000)",
+        type=int,
+        default=50000)
+    parser.add_argument("-emb",
+        help="the embedding size (def:128)",
+        type=int,
+        default=128)
+    parser.add_argument("-top",
+        help="show top n nearnest words",
+        type=int,
+        default=10)
+    return parser.parse_args()
+
+args = parse_arguments()
+print("args config:{}".format(args))
+
+#if len(sys.argv) != 4:
+#    print('Usage:\n\tsimilarity.py <input filename> <bloom filter plk> <model filename>')
+#    sys.exit(-1)
+n_words = args.noc
+embedding_size = args.emb # Dimension of the embedding vector.
+top_k = args.top
 
 print('Loading bloomfilter...', end='')
 bloomfilter = bf.bloomfilter()
-bloomfilter.load(sys.argv[2])
+bloomfilter.load(args.bloom)
+max_bf_size = bloomfilter.size
 print('Done')
 
 
@@ -54,18 +89,12 @@ def read_data(filename, n_words):
 
     return unsorted_res
 
-n_words = 50000
 
-print('Read vocabulary from {}...'.format(sys.argv[1]), end='')
-vocabulary = read_data(sys.argv[1], n_words)
+print('Read vocabulary from {}...'.format(args.hashes), end='')
+vocabulary = read_data(args.hashes, n_words)
 print('Done')
 
-embedding_size = 128 # Dimension of the embedding vector.
-
-bloom_filter_max_size = 256
-num_hash_fun = 7
-
-top_k = 20
+num_hash_fun = bloomfilter.k
 
 print('Construct required tf graph...', end='')
 
@@ -77,7 +106,7 @@ with graph.as_default():
     # Ops and variables pinned to the CPU because of missing GPU implementation
     with tf.device('/cpu:0'):
         embeddings = tf.Variable(
-            tf.random_uniform([bloom_filter_max_size, embedding_size], -1.0, 1.0))
+            tf.random_uniform([max_bf_size, embedding_size], -1.0, 1.0))
 
     # Compute the average NCE loss for the batch.
     # tf.nce_loss automatically draws a new sample of the negative labels each
@@ -106,9 +135,9 @@ with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
     init.run()
 
-    print('Restore embeddings weights from model({})...'.format(sys.argv[3]), end='')
+    print('Restore embeddings weights from model({})...'.format(args.model), end='')
     saver = tf.train.Saver({'embeddings': embeddings})
-    saver.restore(session, sys.argv[3])
+    saver.restore(session, args.model)
     print('Done')
 
     while True:

@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 import subprocess
 import sys
 import magic
@@ -8,14 +7,29 @@ import pickle
 import hashlib
 import re
 from bf import bloomfilter
+import argparse
 
-USAGE = "Transfer text file to per instruction hashes\nUsage: {} <input text file or root folder> <output-filename>"
+
 ERROR = ['Read file error']
 
-class Obj2hash():
+def progress(count, total, suffix=''):
+     bar_len = 60
+     filled_len = int(round(bar_len * count / float(total)))
 
-    def __init__(self, name, size):
-        self.bloomfilter = bloomfilter(name=name, size=size)
+     percents = round(100.0 * count / float(total), 1)
+     bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+     sys.stdout.write('[%s] %s%s ...%s (%s/%s)\r' % (bar, percents, '%', suffix, count, total))
+     sys.stdout.flush()  # As suggested by Rom Ruben
+
+
+class Obj2hash():
+    """
+        class for generating hashes
+        //maybe implemented by a function is ok.
+    """
+    def __init__(self, name, size, k):
+        self.bloomfilter = bloomfilter(name=name, size=size, k=k)
 
     def obj2hash(self, file):
         output = open(file, 'r').read()
@@ -26,53 +40,68 @@ class Obj2hash():
         output = output.split()
 
         hash_list = []
+        total = len(output)
+        cnt = 0
         for i in output:
             vec, indice = self.bloomfilter.add(i)
             indice_tuple = ','.join([str(idx) for idx in indice])
             hash_list.append('{}'.format(indice_tuple))
+            cnt+=1
+            progress(cnt, total)
         return hash_list
 
     def save_table(self):
         self.bloomfilter.save()
 
 
+def parse_arguments():
+    """
+        Handling the arguments
+    """
+    parser=argparse.ArgumentParser()
+    parser.add_argument("input", help="enter the file containting words", type=str)
+    parser.add_argument("output", help="the output hash file name", type=str)
+    parser.add_argument("-k",
+             help="the total number of hash functions (def:7)",
+             type=int,
+             default=7)
+    parser.add_argument("-max_bf_size","-bf",
+             help="the max index of hash functions (def:2^16)",
+             type=int,
+             default=65535)
+    return parser.parse_args()
+
+def gen_hash(hasher, file_path, outf):
+    """
+        given a file containing words, return hash list
+    """
+    print('Processing: {}'.format(file_path))
+    hash_list = hasher.obj2hash(file_path)
+    if hash_list is not None:
+        hash_list = [str(h) for h in hash_list]
+        hash_str = '\n'.join(hash_list)
+        outf.write(hash_str + '\n')
+    else:
+        print('Error for processing {}'.format(file_path))
+    return
+
 def main():
-    if len(sys.argv) != 3:
-        print(USAGE.format(sys.argv[0]), file=sys.stderr)
-        sys.exit(1)
+    args = parse_arguments()
+    output_file = open(args.output + '_' + str(args.max_bf_size) + '.hash', 'w')
 
-    file = sys.argv[1]
-    output_file = open(sys.argv[2] + '.txt', 'w')
-
-    if os.path.isdir(file):
-        search_root = file
-        tohash = Obj2hash(sys.argv[2], 256)
-        try:
+    tohash = Obj2hash(args.output, args.max_bf_size, args.k)
+    try:
+        if os.path.isdir(args.input):
+            search_root = args.input
             for root, dirnames, filenames in os.walk(search_root):
                 for filename in filenames:
                     file_path = os.path.join(root, filename)
-                    file_size = os.path.getsize(file_path)
-                    print('Processing: {}'.format(file_path))
-                    hash_list = tohash.obj2hash(file_path)
-                    if hash_list is not None:
-                        hash_list = [str(h) for h in hash_list]
-                        hash_str = ' '.join(hash_list)
-                        output_file.write(hash_str + '\n')
-        finally:
-            tohash.save_table()
-            output_file.close()
-    else:
-        tohash = Obj2hash(sys.argv[2], 256)
-        hash_list = tohash.obj2hash(file)
-        if hash_list is not None:
-            hash_list = [str(h) for h in hash_list]
-            hash_str = '\n'.join(hash_list)
-            output_file.write(hash_str + '\n')
-            tohash.save_table()
+                    gen_hash(tohash, file_path, output_file)
         else:
-            sys.exit(1)
+            gen_hash(tohash, args.input, output_file)
+    finally:
+        tohash.save_table()
         output_file.close()
-
 
 if __name__ == "__main__":
     main()

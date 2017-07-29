@@ -1029,7 +1029,7 @@ def _compute_sampled_logits(weights,
     # row_wise_dots is [batch_size, num_true, dim]
     dim = array_ops.shape(true_w)[1:2]
     new_true_w_shape = array_ops.concat([[-1, num_true], dim], 0)
-    
+
     row_wise_dots = math_ops.multiply(
         array_ops.expand_dims(inputs_tile, 1),
         array_ops.reshape(true_w, new_true_w_shape))
@@ -1129,7 +1129,8 @@ def nce_loss(weights,
              remove_accidental_hits=False,
              partition_strategy="mod",
              name="nce_loss",
-             rank_matrix=None):
+             rank_matrix=None,
+             num_hash_func=7):
   """Computes and returns the noise-contrastive estimation training loss.
 
   See [Noise-contrastive estimation: A new estimation principle for
@@ -1220,7 +1221,8 @@ def nce_loss(weights,
       remove_accidental_hits=remove_accidental_hits,
       partition_strategy=partition_strategy,
       name=name,
-      rank_matrix=rank_matrix)
+      rank_matrix=rank_matrix,
+      num_hash_func=num_hash_func)
   sampled_losses = sigmoid_cross_entropy_with_logits(
       labels=labels, logits=logits, name="sampled_losses")
   # sampled_losses is batch_size x {true_loss, sampled_losses...}
