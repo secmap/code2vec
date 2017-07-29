@@ -61,6 +61,10 @@ def parse_arguments():
         help="the total number of training epoch",
         type=int,
         default=100000)
+    parser.add_argument("-lr",
+        help="the learning rate for the training",
+        type=float,
+        default=1.0)
     return parser.parse_args()
 
 args = parse_arguments()
@@ -234,7 +238,7 @@ with graph.as_default():
                        num_hash_func=args.k))
 
     # Construct the SGD optimizer using a learning rate of 1.0.
-    optimizer = tf.train.GradientDescentOptimizer(1.0).minimize(loss)
+    optimizer = tf.train.GradientDescentOptimizer(args.lr).minimize(loss)
 
     # Compute the cosine similarity between minibatch examples and all embeddings.
     norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
