@@ -16,11 +16,28 @@ from six.moves import urllib
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 import argparse
+import logging
+import signal
+
+OUT_DIR = "./output/"
+logging.basicConfig(level=logging.INFO,
+        format=' [%(levelname)-8s] %(message)s')
+log = logging.getLogger("word_vec")
+
+def signal_handler(sig, frame):
+    log.warn('Stopping and Saving models')
+    final_embeddings = normalized_embeddings.eval()
+    save_path = saver.save(session,
+            out_model_path+"_last_{}".format(step))
+    exit(1)
+
 
 def parse_arguments():
     parser=argparse.ArgumentParser()
-    parser.add_argument("input", help="the input, a hash list", type=str)
-    parser.add_argument("output", help="the output, a trained model", type=str)
+    parser.add_argument("task_name", help="the task name", type=str)
+    parser.add_argument("-verbose", "-v",
+            help="show debug information",
+            action='store_true')
     parser.add_argument("-k",
 	help="the total number of hash functions (def:7)",
         type=int,
@@ -68,7 +85,16 @@ def parse_arguments():
     return parser.parse_args()
 
 args = parse_arguments()
-print("args config:{}".format(args))
+if(args.verbose):
+    log.setLevel(logging.DEBUG)
+
+log.debug(args)
+in_hash_path = OUT_DIR+args.task_name +'/'+args.task_name+ ".hash"
+out_model_path = OUT_DIR+args.task_name + '/' + args.task_name
+log.debug(in_hash_path)
+log.debug(out_model_path)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def read_data(filename):
     """
@@ -86,9 +112,9 @@ def read_data(filename):
             try:
                 assert len(hashes) == args.k
             except AssertionError:
-                print("The total number of hashes is not equal args.k={} != input.k={}".format(
+                log.error("The total number of hashes is not equal args.k={} != input.k={}".format(
                     args.k, len(hashes)))
-                print("Use -k to identify a correct hash number k (should be \"-k {}\")".format(
+                log.error("Use -k to identify a correct hash number k (should be \"-k {}\")".format(
                     len(hashes)))
                 sys.exit(1)
 
@@ -97,8 +123,8 @@ def read_data(filename):
     return res
 
 # Step 1: Read hash lists
-vocabulary = read_data(args.input)
-print('Data size', len(vocabulary))
+vocabulary = read_data(in_hash_path)
+log.debug('Data size', len(vocabulary))
 
 # Step 1.5: construct the 'UNK' tuple
 # [FIXIT] we do not check the 'UNK's max_bf_size and k
@@ -119,7 +145,7 @@ def build_dataset(words, n_words):
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
-    
+
     data = list()
     unk_count = 0
     for word in words:
@@ -141,13 +167,13 @@ def build_dataset(words, n_words):
 vocabulary, count, dictionary, reverse_dictionary, rank_matrix = build_dataset(vocabulary, args.noc)
 vocabulary_size = len(dictionary)
 
-print('Most common words (+UNK)', count[:5])
+log.debug('Most common words (+UNK):{}'.format(count[:5]))
 data_index = 0
 
 # Step 3: Function to generate a training batch for the skip-gram model.
 
 vocabulary = [list(v) for v in vocabulary]
-print('len(vocabulary):', len(vocabulary))
+log.debug('len(vocabulary):{}'.format(len(vocabulary)))
 
 def generate_batch(batch_size, num_skips, skip_window):
     global data_index
@@ -180,10 +206,13 @@ batch, labels = generate_batch(batch_size=args.bat,
         num_skips=args.ns,
         skip_window=args.sw)
 
-#print(labels)
+log.debug(len(labels))
+log.debug(len(batch))
+log.debug(len(dictionary))
+log.debug(len(reverse_dictionary))
 for i in range(8):
-    print(batch[i], dictionary[tuple(batch[i])],
-          '->', labels[i], reverse_dictionary[labels[i, 0]])
+    log.debug('{} {} -> {} {}'.format(batch[i], dictionary[tuple(batch[i])],
+        labels[i], reverse_dictionary[labels[i, 0]]))
 
 # Step 4: Build and train a skip-gram model.
 # We pick a random validation set to sample nearest neighbors. Here we limit the
@@ -205,17 +234,17 @@ with graph.as_default():
 
     # Ops and variables pinned to the CPU because of missing GPU implementation
     with tf.device('/cpu:0'):
-        print('train_inputs.shape = ', train_inputs.shape)
+        log.debug('train_inputs.shape = '+str(train_inputs.shape))
         # Look up embeddings for inputs.
         embeddings = tf.Variable(
             tf.random_uniform([args.max_bf_size, args.emb], -1.0, 1.0))
-        print('embeddings.shape = ', embeddings.shape)
+        log.debug('embeddings.shape = ' + str(embeddings.shape))
         embed = tf.nn.embedding_lookup(embeddings, train_inputs)
-        print('embed.shape = ', embed.shape)
+        log.debug('embed.shape = ' + str(embed.shape))
         embed = tf.reduce_mean(embed, 1)
-        print('embed.shape = ', embed.shape)
-        
-        
+        log.debug('embed.shape = ' + str( embed.shape))
+
+
 
         # Construct the variables for the NCE loss
         nce_weights = tf.Variable(
@@ -253,7 +282,7 @@ with graph.as_default():
 
     similarity = tf.matmul(
         valid_embeddings, all_words_embeddings, transpose_b=True)
-    print('similarity.shape = ', similarity.shape)
+    log.debug('similarity.shape = ' + str(similarity.shape))
     # Add variable initializer.
     init = tf.global_variables_initializer()
 
@@ -262,7 +291,7 @@ with graph.as_default():
 with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
     init.run()
-    print('Initialized')
+    log.debug('Initialized')
 
     saver = tf.train.Saver({'embeddings': embeddings})
 
@@ -280,11 +309,15 @@ with tf.Session(graph=graph) as session:
         # print('Vec: {}'.format(my_labels))
         average_loss += loss_val
 
+        if step != 0 and step % 10000 == 0:
+            save_path = saver.save(session, out_model_path + '_{}_{5.6}'.format(
+                    step, (average_loss/2000)))
+
         if step % 2000 == 0:
             if step > 0:
                 average_loss /= 2000
             # The average loss is an estimate of the loss over the last 2000 batches.
-            print('Average loss at step ', step, ': ', average_loss)
+            log.info('Average loss at step {:>10} {:>15.8f}'.format(step,average_loss))
             average_loss = 0
 
         # Note that this is expensive (~20% slowdown if computed every 500 steps)
@@ -303,6 +336,6 @@ with tf.Session(graph=graph) as session:
         '''
 
     final_embeddings = normalized_embeddings.eval()
-    save_path = saver.save(session, args.output)
+    save_path = saver.save(session, out_model_path)
 
-print('Training Finished!')
+log.info('Training Finished!')
