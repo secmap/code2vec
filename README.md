@@ -7,10 +7,10 @@ This is a project for code2Vec.
     -k      indicate how many hashes will be used  
     -bf     indicate how many bits in bloom filter  
     -h      the help menu*  
-    Ex:`python3 tohash.py text8`
-     Will output a task name, e.g. [text8_65535_7]. 
+    Ex:`python3 tohash.py text8`  
+     Will output a task name, e.g. [text8_65535_7].  
      The task name is composed of dataset's basename, `bf`, and `k`.  
-     The program will create `./output`/[TASK NAME] folder for putting  
+     The program will create `./output/[TASK NAME]` folder for putting  
          1. a hash list containing all words' hash  
          2. a pickle file for bloom filter  
 
@@ -25,7 +25,7 @@ This is a project for code2Vec.
     -neg    negative samples (for w2v)  
     -sw     skip window (for skip-grams)  
     -ns     skip words (for skip-grams)*  
-    Ex: `python3 word2vec_tensorflow.py text8_65535_7`
+    Ex: `python3 word2vec_tensorflow.py text8_65535_7`  
     Will output a model, saved by TensorFlow per 100,000 epoch.  
     Or you can stop for saving the last model, named with suffix "_last".  
     The model files contain:  
