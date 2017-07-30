@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO,
         format=' [%(levelname)-8s] %(message)s')
 log = logging.getLogger("similar")
 
+
 def parse_arguments():
     parser=argparse.ArgumentParser()
     parser.add_argument("model", help="the task name", type=str)
@@ -86,7 +87,6 @@ def read_data(filename, n_words):
         filter_set = set()
         unsorted_res = []
         words = []
-        count = []
         for line in f:
             word = line.strip()
             if len(word) == 0:
@@ -94,6 +94,7 @@ def read_data(filename, n_words):
             word_idx_list = [int(idx) for idx in word.split(',')]
             filter_set.add(tuple(word_idx_list))
             words.append(tuple(sorted(word_idx_list)))
+
         words_counter = collections.Counter(words)
         most_common_words = dict()
         most_common_words_counter = words_counter.most_common(n_words)
@@ -106,7 +107,6 @@ def read_data(filename, n_words):
 
     del most_common_words
     del words
-    del count
     del filter_set
 
     return unsorted_res
@@ -185,8 +185,8 @@ with tf.Session(graph=graph) as session:
                     possible_words = possible_words & bloomfilter.get_opcode_in_table(idx, val)
             # opcode_asm = pwn.disasm(opcode)
             if len(possible_words) == 0:
-                pass
-                #print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
+                #pass
+                print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
             else:
                 print('{:>2.6f}\t{}'.format(distance[k], possible_words))
         print('=' * 80)

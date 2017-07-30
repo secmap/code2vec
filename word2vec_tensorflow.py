@@ -24,6 +24,15 @@ logging.basicConfig(level=logging.INFO,
         format=' [%(levelname)-8s] %(message)s')
 log = logging.getLogger("word_vec")
 
+def progress(count, total, suffix=''):
+    bar_len = 40
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+    sys.stdout.write('[%s] %s%s ...%s (%s/%s)\r' % (bar, percents, '%', suffix, count, total))
+    #sys.stdout.flush()  # As suggested by Rom Ruben
+
 def signal_handler(sig, frame):
     log.warn('Stopping and Saving models')
     final_embeddings = normalized_embeddings.eval()
@@ -102,6 +111,9 @@ def read_data(filename):
     """
     with open(filename) as f:
         res = []
+        total = os.path.getsize(filename)
+        cnt = 0
+        line_num = 0
         for line in f:
             word = line.strip()
             if len(word) == 0:
@@ -120,6 +132,10 @@ def read_data(filename):
 
             word_idx_list = [int(idx) for idx in hashes]
             res.append(tuple(sorted(word_idx_list)))
+            cnt+=len(line)
+            line_num+=1
+            if line_num % 10000 == 0:
+                progress(cnt, total)
     return res
 
 # Step 1: Read hash lists
@@ -136,12 +152,11 @@ unknow_indice = tuple(sorted(bloom_filter.get_indice('UNK')))
 def build_dataset(words, n_words):
     """Process raw inputs into a dataset."""
 
-    # [FIXIT] Current 'UNK' is the most frequent word.
-    #         But what if not?
-    count = [[unknow_indice, -1]]
+    count = []
     rank_matrix = []
     words_counter = collections.Counter(words)
     count.extend(words_counter.most_common(n_words))
+    count.extend([(unknow_indice, -1)])
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
@@ -155,9 +170,7 @@ def build_dataset(words, n_words):
             indice = unknow_indice  # dictionary['UNK']
             unk_count += 1
         data.append(indice)
-    count[0][1] = unk_count
-    count[0] = tuple(count[0])
-
+    count[-1] = tuple([count[-1][0], unk_count])
     reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     for i in range(len(count)):
         rank_matrix.append(list(reversed_dictionary[i]))
@@ -267,7 +280,11 @@ with graph.as_default():
                        num_hash_func=args.k))
 
     # Construct the SGD optimizer using a learning rate of 1.0.
-    optimizer = tf.train.GradientDescentOptimizer(args.lr).minimize(loss)
+    #optimizer = tf.train.GradientDescentOptimizer(args.lr).minimize(loss)
+    optimizer = tf.train.GradientDescentOptimizer(args.lr)
+    gradients = optimizer.compute_gradients(loss)
+    capped_grad = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradients]
+    train_op = optimizer.apply_gradients(capped_grad)
 
     # Compute the cosine similarity between minibatch examples and all embeddings.
     norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
@@ -303,7 +320,8 @@ with tf.Session(graph=graph) as session:
 
         # We perform one update step by evaluating the optimizer op (including it
         # in the list of returned values for session.run()
-        _, loss_val = session.run([optimizer, loss], feed_dict=feed_dict)
+        #_, loss_val = session.run([optimizer, loss], feed_dict=feed_dict)
+        _, loss_val = session.run([train_op, loss], feed_dict=feed_dict)
         # my_labels = session.run(train_labels, feed_dict=feed_dict)
         # print('feed_dict: {}'.format(feed_dict))
         # print('Vec: {}'.format(my_labels))
