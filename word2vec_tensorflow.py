@@ -27,8 +27,8 @@ log = logging.getLogger("word_vec")
 def signal_handler(sig, frame):
     log.warn('Stopping and Saving models')
     final_embeddings = normalized_embeddings.eval()
-    save_path = saver.save(session,
-            out_model_path+"_last_{}".format(step))
+    save_path = saver.save(session, out_model_path + 'last_{}_{:5.6f}'.format(
+        step, average_loss/2000 ))
     exit(1)
 
 
@@ -124,7 +124,7 @@ def read_data(filename):
 
 # Step 1: Read hash lists
 vocabulary = read_data(in_hash_path)
-log.debug('Data size', len(vocabulary))
+log.debug('Data size'+ str(len(vocabulary)))
 
 # Step 1.5: construct the 'UNK' tuple
 # [FIXIT] we do not check the 'UNK's max_bf_size and k
@@ -310,8 +310,8 @@ with tf.Session(graph=graph) as session:
         average_loss += loss_val
 
         if step != 0 and step % 10000 == 0:
-            save_path = saver.save(session, out_model_path + '_{}_{5.6}'.format(
-                    step, (average_loss/2000)))
+            save_path = saver.save(session, out_model_path + '_{}_{:5.6f}'.format(
+                    step, average_loss/2000 ))
 
         if step % 2000 == 0:
             if step > 0:
