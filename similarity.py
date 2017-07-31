@@ -8,12 +8,20 @@ import bf
 import pwn
 import collections
 import argparse
+import logging
+
+OUT_DIR = "./output/"
+logging.basicConfig(level=logging.INFO,
+        format=' [%(levelname)-8s] %(message)s')
+log = logging.getLogger("similar")
+
 
 def parse_arguments():
     parser=argparse.ArgumentParser()
-    parser.add_argument("hashes", help="the hash list", type=str)
-    parser.add_argument("bloom", help="the bloom filter pickle file", type=str)
-    parser.add_argument("model", help="the output trained model", type=str)
+    parser.add_argument("model", help="the task name", type=str)
+    parser.add_argument("-verbose", "-v",
+            help="show debug information",
+            action='store_true')
     parser.add_argument("-k",
 	help="the total number of hash functions (def:7)",
         type=int,
@@ -37,7 +45,22 @@ def parse_arguments():
     return parser.parse_args()
 
 args = parse_arguments()
-print("args config:{}".format(args))
+if(args.verbose):
+    log.setLevel(logging.DEBUG)
+
+log.debug(args)
+
+dir_path = os.path.dirname(args.model)
+log.debug(dir_path)
+task_name = dir_path.split('/')[-1]
+log.debug(task_name)
+
+in_hash_path = dir_path + '/' + task_name+ ".hash"
+in_pkl_path = dir_path + '/' +task_name
+log.debug("args config:{}".format(args))
+log.debug("model path: " + args.model)
+log.debug("hash path: " + in_hash_path)
+log.debug("bf path: " + in_pkl_path)
 
 #if len(sys.argv) != 4:
 #    print('Usage:\n\tsimilarity.py <input filename> <bloom filter plk> <model filename>')
@@ -46,11 +69,11 @@ n_words = args.noc
 embedding_size = args.emb # Dimension of the embedding vector.
 top_k = args.top
 
-print('Loading bloomfilter...', end='')
+log.debug('Loading bloomfilter...')
 bloomfilter = bf.bloomfilter()
-bloomfilter.load(args.bloom)
+bloomfilter.load(in_pkl_path)
 max_bf_size = bloomfilter.size
-print('Done')
+log.debug('Done')
 
 
 def get_word_indice(word):
@@ -64,7 +87,6 @@ def read_data(filename, n_words):
         filter_set = set()
         unsorted_res = []
         words = []
-        count = []
         for line in f:
             word = line.strip()
             if len(word) == 0:
@@ -72,6 +94,7 @@ def read_data(filename, n_words):
             word_idx_list = [int(idx) for idx in word.split(',')]
             filter_set.add(tuple(word_idx_list))
             words.append(tuple(sorted(word_idx_list)))
+
         words_counter = collections.Counter(words)
         most_common_words = dict()
         most_common_words_counter = words_counter.most_common(n_words)
@@ -84,19 +107,18 @@ def read_data(filename, n_words):
 
     del most_common_words
     del words
-    del count
     del filter_set
 
     return unsorted_res
 
 
-print('Read vocabulary from {}...'.format(args.hashes), end='')
-vocabulary = read_data(args.hashes, n_words)
-print('Done')
+log.debug('Read vocabulary from {}...'.format(in_hash_path))
+vocabulary = read_data(in_hash_path, n_words)
+log.debug('Done')
 
 num_hash_fun = bloomfilter.k
 
-print('Construct required tf graph...', end='')
+log.debug('Construct required tf graph...')
 
 graph = tf.Graph()
 
@@ -114,7 +136,7 @@ with graph.as_default():
     test_vec = tf.nn.embedding_lookup(embeddings, test_input)
     test_vec = tf.reduce_mean(test_vec, 0)
     test_vec = tf.expand_dims(test_vec, 0)
-    print('test_vec.shape: ', test_vec.shape)
+    log.debug('test_vec.shape: '+str(test_vec.shape))
 
 
     # Compute the cosine similarity between minibatch examples and all embeddings.
@@ -128,22 +150,20 @@ with graph.as_default():
     # Add variable initializer.
     init = tf.global_variables_initializer()
 
-print('Done')
-print('Tensorflow session start')
+log.debug('Done')
+log.debug('Tensorflow session start')
 
 with tf.Session(graph=graph) as session:
     # We must initialize all variables before we use them.
     init.run()
 
-    print('Restore embeddings weights from model({})...'.format(args.model), end='')
+    log.debug('Restore embeddings weights from model({})...'.format(args.model))
     saver = tf.train.Saver({'embeddings': embeddings})
     saver.restore(session, args.model)
-    print('Done')
+    log.debug('Done')
 
     while True:
-        raw_user_input = input('Please input a word (idx1,idx2,...idx7) or word or exit:')
-        if raw_user_input == 'exit':
-            break
+        raw_user_input = input('Please input a word (idx1,idx2,...idx7) or word or ctrl-c:')
         if raw_user_input.startswith('('):
             user_input = [int(i) for i in raw_user_input[1:-1].split(',')]
         else:
@@ -165,8 +185,8 @@ with tf.Session(graph=graph) as session:
                     possible_words = possible_words & bloomfilter.get_opcode_in_table(idx, val)
             # opcode_asm = pwn.disasm(opcode)
             if len(possible_words) == 0:
-                pass
-                #print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
+                #pass
+                print('Unable to find reversed opcode for: {}'.format(close_opcode_indice))
             else:
-                print('{}\t{}'.format(distance[k], possible_words))
+                print('{:>2.6f}\t{}'.format(distance[k], possible_words))
         print('=' * 80)
