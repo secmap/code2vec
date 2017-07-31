@@ -18,6 +18,7 @@ import tensorflow as tf
 import argparse
 import logging
 import signal
+from nn_impl import nce_loss
 
 OUT_DIR = "./output/"
 logging.basicConfig(level=logging.INFO,
@@ -270,7 +271,7 @@ with graph.as_default():
     # time we evaluate the loss.
 
     loss = tf.reduce_mean(
-        tf.nn.nce_loss(weights=nce_weights,
+        nce_loss(weights=nce_weights,
                        biases=nce_biases,
                        labels=train_labels,
                        inputs=embed,
