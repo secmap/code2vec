@@ -34,24 +34,26 @@ class Obj2hash():
     def __init__(self, name, size, k):
         self.bloomfilter = bloomfilter(name=name, size=size, k=k)
 
-    def obj2hash(self, f):
-        output = open(f, 'r').read()
-        if output == None:
+    def obj2hash(self, f, outf):
+        rawfile = open(f, 'r')
+
+        if rawfile == None:
             log.error(ERROR)
             return None
 
-        output = output.split()
 
-        hash_list = []
-        total = len(output)
+        total = os.stat(f).st_size
         cnt = 0
-        for i in output:
-            vec, indice = self.bloomfilter.add(i)
+        for line in rawfile:
+            vec, indice = self.bloomfilter.add(line.strip())
             indice_tuple = ','.join([str(idx) for idx in indice])
-            hash_list.append('{}'.format(indice_tuple))
-            cnt+=1
+            outf.write(str(indice_tuple)+'\n')
+            cnt += len(line)
             progress(cnt, total)
-        return hash_list
+
+        rawfile.close()
+
+        return 
 
     def save_table(self):
         self.bloomfilter.save()
@@ -81,13 +83,7 @@ def gen_hash(hasher, file_path, outf):
         given a file containing words, return hash list
     """
     log.info('Processing: {}'.format(file_path))
-    hash_list = hasher.obj2hash(file_path)
-    if hash_list is not None:
-        hash_list = [str(h) for h in hash_list]
-        hash_str = '\n'.join(hash_list)
-        outf.write(hash_str + '\n')
-    else:
-        log.error('Error for processing {}'.format(file_path))
+    hash_list = hasher.obj2hash(file_path, outf)
     return
 
 def main():
