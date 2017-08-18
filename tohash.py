@@ -73,7 +73,7 @@ def parse_arguments():
     parser.add_argument("-max_bf_size","-bf",
              help="the max index of hash functions (def:2^16)",
              type=int,
-             default=65535)
+             default=65536)
     return parser.parse_args()
 
 def gen_hash(hasher, file_path, outf):
